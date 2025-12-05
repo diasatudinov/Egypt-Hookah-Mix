@@ -2,7 +2,6 @@
 //  ContentView.swift
 //  Egypt Hookah Mix
 //
-//  Created by Dias Atudinov on 05.12.2025.
 //
 
 import SwiftUI
@@ -14,6 +13,7 @@ struct ContentView: View {
                 .imageScale(.large)
                 .foregroundStyle(.tint)
             Text("Hello, world!")
+                .bold()
         }
         .padding()
     }
