@@ -2,15 +2,13 @@
 //  FlavorType.swift
 //  Egypt Hookah Mix
 //
-//  Created by Dias Atudinov on 09.12.2025.
 //
 
 
 import SwiftUI
 
-// MARK: - Model
 
-enum FlavorType: String, CaseIterable, Identifiable {
+enum FlavorType: String, Codable, CaseIterable, Identifiable {
     case sweet = "Sweet"
     case citrus = "Citrus"
     case minty = "Minty"
@@ -23,21 +21,73 @@ enum FlavorType: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
-struct CreatedFlavor: Identifiable, Hashable {
-    let id = UUID()
-    let title: String        // "Sweet + Citrus"
-    let productName: String  // "Citrus Swirl"
+enum CreatedFlavorType: Codable {
+    case own
+    case fromList
 }
 
-// MARK: - ViewModel
+struct CreatedFlavor: Codable, Identifiable, Hashable {
+    let id = UUID()
+    let selectedFlavors: [FlavorType]
+    let title: String
+    let productName: String
+    var createdType: CreatedFlavorType
+    var isFavorite: Bool
+    var isEvaluated: Bool
+    var proportion: Int
+    var fortress: Int
+    var time: String
+    var myRating: Int
+    var notes: String
+}
+
 
 final class FlavorViewModel: ObservableObject {
     @Published var selectedFlavors: [FlavorType] = []
-    @Published var createdFlavors: [CreatedFlavor] = []
+    @Published var createdFlavors: [CreatedFlavor] = [
+        
+    ] {
+        didSet {
+            saveCreatedFlavors()
+        }
+    }
     
-    // Таблица соответствий из задания
+    private var createdFlavorsfileURL: URL {
+        let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        return dir.appendingPathComponent("habits.json")
+    }
+    
+    init() {
+        loadCreatedFlavors()
+    }
+    
+    
+    private func saveCreatedFlavors() {
+        let url = createdFlavorsfileURL
+        do {
+            let data = try JSONEncoder().encode(createdFlavors)
+            try data.write(to: url, options: [.atomic])
+        } catch {
+            print("Failed to save myDives:", error)
+        }
+    }
+    
+    private func loadCreatedFlavors() {
+        let url = createdFlavorsfileURL
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            return
+        }
+        
+        do {
+            let data = try Data(contentsOf: url)
+            let createdFlavors = try JSONDecoder().decode([CreatedFlavor].self, from: data)
+            self.createdFlavors = createdFlavors
+        } catch {
+            print("Failed to load myDives:", error)
+        }
+    }
+    
     private static let combinationMap: [String: String] = [
-        // ОДИН ВКУС
         "Sweet": "Vanilla Dream",
         "Citrus": "Citrus Zest",
         "Minty": "Arctic Breeze",
@@ -47,7 +97,6 @@ final class FlavorViewModel: ObservableObject {
         "Dessert": "Midnight Mocha",
         "Spicy": "Golden Spice",
         
-        // ПАРЫ
         "Sweet + Citrus": "Citrus Swirl",
         "Sweet + Minty": "Frosty Caramel",
         "Sweet + Fruity": "Peach Crème",
@@ -83,7 +132,6 @@ final class FlavorViewModel: ObservableObject {
         
         "Dessert + Spicy": "Cinnamon Mocha",
         
-        // ТРОЙКИ
         "Sweet + Citrus + Minty": "Citrus Frost Swirl",
         "Sweet + Fruity + Berry": "Summer Crème",
         "Citrus + Fruity + Minty": "Tropical Mojito",
@@ -110,7 +158,6 @@ final class FlavorViewModel: ObservableObject {
         "Sweet + Citrus + Spicy": "Spiced Citrus Caramel"
     ]
     
-    // Выбор / снятие выбора вкуса (макс. 3)
     func toggleSelection(_ flavor: FlavorType) {
         if selectedFlavors.contains(flavor) {
             selectedFlavors.removeAll { $0 == flavor }
@@ -120,22 +167,72 @@ final class FlavorViewModel: ObservableObject {
         }
     }
     
-    // Создать новый blend из выбранных вкусов
-    func createFlavor() {
+    func createFlavor(createdType: CreatedFlavorType, ownProductName: String = "", newProportion: Int = 0, newFortress: Int = 0, newTime: String = "", newMyRating: Int = 0, newNotes: String = "") {
         guard !selectedFlavors.isEmpty else { return }
         
-        // Ключ всегда в одном порядке (как в enum), чтобы совпадать с таблицей
         let ordered = FlavorType.allCases.filter { selectedFlavors.contains($0) }
         let key = ordered.map { $0.rawValue }.joined(separator: " + ")
+        var productName = ""
+        var isEvaluated = false
+        var proportion = 0
+        var fortress = 0
+        var time = ""
+        var myRating = 0
+        var notes = ""
         
-        let productName = Self.combinationMap[key] ?? "Unknown blend"
-        
+        if createdType == .fromList {
+            productName = Self.combinationMap[key] ?? "Unknown blend"
+        } else {
+            productName = ownProductName
+            proportion = newProportion
+            fortress = newFortress
+            time = newTime
+            myRating = newMyRating
+            notes = newNotes
+            isEvaluated = true
+        }
         let newFlavor = CreatedFlavor(
+            selectedFlavors: ordered,
             title: key,
-            productName: productName
+            productName: productName,
+            createdType: createdType,
+            isFavorite: false,
+            isEvaluated: isEvaluated,
+            proportion: proportion,
+            fortress: fortress,
+            time: time,
+            myRating: myRating,
+            notes: notes
         )
         
         createdFlavors.append(newFlavor)
         selectedFlavors.removeAll()
+    }
+    
+    func getFlavors(for productName: String) -> [FlavorType] {
+        guard let combinationKey = Self.combinationMap.first(where: { $0.value == productName })?.key else {
+            return []
+        }
+        
+        let names = combinationKey.components(separatedBy: " + ")
+        let flavors = names.compactMap { FlavorType(rawValue: $0) }
+        return flavors
+    }
+    
+    func toggleIsFavorite(_ flavor: CreatedFlavor) {
+        if let index = createdFlavors.firstIndex(where: { $0.id == flavor.id }) {
+            createdFlavors[index].isFavorite.toggle()
+        }
+    }
+    
+    func evaluateFlavor(_ flavor: CreatedFlavor, proportion: Int, fortress: Int, time: String, myRating: Int, notes: String) {
+        if let index = createdFlavors.firstIndex(where: { $0.id == flavor.id }) {
+            createdFlavors[index].proportion = proportion
+            createdFlavors[index].fortress = fortress
+            createdFlavors[index].time = time
+            createdFlavors[index].myRating = myRating
+            createdFlavors[index].notes = notes
+            createdFlavors[index].isEvaluated = true
+        }
     }
 }
