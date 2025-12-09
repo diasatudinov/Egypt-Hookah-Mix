@@ -18,7 +18,7 @@ struct HMMenuContainerView: View {
 
     struct BBMenuView: View {
         @State var selectedTab = 1
-//        @StateObject var habitViewModel = HabitViewModel()
+        @StateObject private var viewModel = FlavorViewModel()
         private let tabs = ["My dives", "Calendar", "Stats", "Stats"]
         
         var body: some View {
@@ -26,16 +26,13 @@ struct HMMenuContainerView: View {
                 
                 switch selectedTab {
                 case 0:
-                    Color.blue.ignoresSafeArea()
-//                    SHAllHabitsView(viewModel: habitViewModel)
+                    HMFavoritesView(viewModel: viewModel)
                 case 1:
-                    Color.red.ignoresSafeArea()
-//                    SHHomeView(viewModel: habitViewModel)
+                    HMHomeView(viewModel: viewModel)
                 case 2:
-                    Color.green.ignoresSafeArea()
-//                    SHStatisticsView(viewModel: habitViewModel)
+                    HMCreateView(viewModel: viewModel)
                 case 3:
-                    Color.cyan.ignoresSafeArea()
+                    HMEvaluateView(viewModel: viewModel)
                 default:
                     Text("default")
                 }
