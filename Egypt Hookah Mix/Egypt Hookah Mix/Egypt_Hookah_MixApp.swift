@@ -10,7 +10,7 @@ import SwiftUI
 struct Egypt_Hookah_MixApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            HMMenuContainerView()
         }
     }
 }
